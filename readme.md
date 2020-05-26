@@ -19,14 +19,8 @@ Within the standard sbt project structure you will find:
 
 ## Reoccurring instructions
 Many ways of running Spark have some steps in common like downloading Spark.
-In order to reduce redundancy reoccurring steps are factored out and are listed here.
+Reoccurring steps are factored out and are listed here in order to reduce redundancy.
 You only need to execute them if they are mentioned in the actual list below.
-
-### Get the code (to do)
-The instructions below assume that the environment variable `$sbtProject` is defined
-as the sbt project's root directory. I. E.
-
-    sbtProject="$HOME/ways-of-running-spark"
 
 ### Downloading Spark
 ```shell script
@@ -37,7 +31,30 @@ tar -xvzf ${SPARK_FILE}.tgz --one-top-level=spark --strip-components=1
 sparkReleasePath="$(pwd)/spark"
 ```
 
+### Get the source code
+<a name="get-source-code"></a>
+Download the content of this repo by:
+```shell script
+cd ~  # Change to your preferred directory
+wget https://github.com/mrteutone/ways-of-running-spark/archive/master.tar.gz
+tar -xvzf master.tar.gz
+sbtProject="$(pwd)/ways-of-running-spark"
+```
+
 ### Build a fat jar
+#### Alternative 1: install `sbt` locally
+1. Install `sbt`
+2. Download the source code:
+
+   [#manual](#get-source-code)
+
+   [#manual](get-source-code)
+
+   [#manual](#user-content-get-the-source-code)
+
+   [#manual](#get-the-source-code)
+
+
 ```shell script
 cd "$sbtProject"
 sbt clean assembly
@@ -57,7 +74,7 @@ log4jConfFullPath="$sbtTargetDir/$log4jConfRelativePath"
    ./bin/docker-image-tool.sh -f kubernetes/dockerfiles/spark/Dockerfile build
    ```
 
-## 1. Locally, as process, within docker container
+## 1. Develop locally, run locally as process within docker container
 ```shell script
 dockerImage="eed3si9n/sbt:jdk11-alpine"
 docker pull $dockerImage
