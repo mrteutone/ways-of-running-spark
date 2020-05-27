@@ -31,39 +31,50 @@ tar -xvzf ${SPARK_FILE}.tgz --one-top-level=spark --strip-components=1
 sparkReleasePath="$(pwd)/spark"
 ```
 
-### Get the source code
 <a name="get-source-code"></a>
+### Get the source code
 Download the content of this repo by:
 ```shell script
 cd ~  # Change to your preferred directory
 wget https://github.com/mrteutone/ways-of-running-spark/archive/master.tar.gz
-tar -xvzf master.tar.gz
+tar -xvzf master.tar.gz --one-top-level=ways-of-running-spark --strip-components=1
 sbtProject="$(pwd)/ways-of-running-spark"
 ```
 
 ### Build a fat jar
-#### Alternative 1: install `sbt` locally
-1. Install `sbt`
-2. Download the source code:
-
-   [#manual](#get-source-code)
-
-   [#manual](get-source-code)
-
-   [#manual](#user-content-get-the-source-code)
-
-   [#manual](#get-the-source-code)
-
-
-```shell script
-cd "$sbtProject"
-sbt clean assembly
-sbtTargetDir="$sbtProject/target/scala-2.12"
-jarName="ways-of-running-spark-assembly-0.1.jar"
-jarFullPath="$sbtTargetDir/$jarName"
-log4jConfRelativePath="classes/log4j.properties"
-log4jConfFullPath="$sbtTargetDir/$log4jConfRelativePath"
-```
+1. Some environment variables:
+   ```shell script
+   targetSubPath="target/scala-2.12"
+   ```
+   
+1. Either build the jar locally:
+   1. Install `sbt`
+   2. Download the source code: [#manual](#get-source-code)
+   3. Build the fat jar:
+      ```shell script
+      cd "$sbtProject"
+      sbt clean assembly
+      ```  
+   or within a Docker image:
+   ```shell script
+   sbtProject="$HOME/ways-of-running-spark"  # $HOME is only a suggestion
+   docker build -t sbt:test -f Dockerfile2 . # TODO: download dockerfile first
+   containerId=$(docker create sbt:test)
+      
+   docker cp \
+     $containerId:/opt/workspace/ways-of-running-spark/$targetSubPath/ \
+     $sbtProject/
+    
+   docker rm -v $containerId
+   ```
+2. Define environment variables for later usage:
+   ```shell script
+   sbtTargetDir="$sbtProject/$targetSubPath"
+   jarName="ways-of-running-spark-assembly-0.1.jar"
+   jarFullPath="$sbtTargetDir/$jarName"
+   log4jConfRelativePath="classes/log4j.properties"
+   log4jConfFullPath="$sbtTargetDir/$log4jConfRelativePath"
+   ```
 
 ### Build Spark Docker image
 1. Download Spark
@@ -109,7 +120,10 @@ It is maintained by the former sbt lead Eugene Yokota so you don't even need you
 [3]: https://en.wikipedia.org/wiki/Alpine_Linux
 [1-github]: https://github.com/eed3si9n/docker-sbt
 
-## 2. Download Spark release, submit job locally
+## 2. Dockerfile already contains everything
+to do
+
+## 3. Download Spark release, submit job locally
 1. Build a fat jar for your project: [fat-jar](#user-content-build-a-fat-jar)
 2. Download a Spark release [spark-download](#user-content-downloading-spark) and go into the installed path: `cd $sparkReleasePath`
 3. Execute:
@@ -127,7 +141,7 @@ It is maintained by the former sbt lead Eugene Yokota so you don't even need you
       $jarFullPath --ISIN DE0005772206 --replace
     ```
 
-## 3. Submit job locally, official Spark Dockerfile
+## 4. Submit job locally, official Spark Dockerfile
 You don't like downloading random things but decided to give it a try:
 
 1. Download Spark
@@ -155,7 +169,7 @@ docker run -it --rm \
       --replace
 ```
 
-## 4. Locally in Kubernetes via Minikube
+## 5. Locally in Kubernetes via Minikube
 Nowadays everybody wants to run everything in Kubernetes.
 Here you go:
 
@@ -323,17 +337,17 @@ Here you go:
 
         kubectl delete pod spark-test-...-driver
 
-## 5. EC2 with CloudFormation
+## 6. EC2 with CloudFormation
 to do
 
-## 6. ECS
+## 7. ECS
 to do
 
-## 7. EKS
+## 8. EKS
 to do
 
-## 8. EMR
+## 9. EMR
 to do
 
-## 9. spark-on-k8s-operator
+## 10. spark-on-k8s-operator
 [to do](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator)
