@@ -47,20 +47,20 @@ sbtProject="$(pwd)/ways-of-running-spark"
    targetSubPath="target/scala-2.12"
    ```
    
-1. Either build the jar locally:
+1. **Either** build the jar locally:
    1. Install `sbt`
    2. Download the source code: [#manual](#get-source-code)
-   3. Build the fat jar:
+   3. Execute:
       ```shell script
       cd "$sbtProject"
       sbt clean assembly
       ```  
-   or within a Docker image:
+   **or** within a Docker image:
    ```shell script
-   sbtProject="$HOME/ways-of-running-spark"  # $HOME is only a suggestion
-   docker build -t sbt:test -f Dockerfile2 . # TODO: download dockerfile first
+   docker build -t sbt:test -f Dockerfile2 . # TODO: download Dockerfile first
    containerId=$(docker create sbt:test)
-      
+   sbtProject="$HOME/ways-of-running-spark"  # $HOME is only a suggestion
+   
    docker cp \
      $containerId:/opt/workspace/ways-of-running-spark/$targetSubPath/ \
      $sbtProject/
