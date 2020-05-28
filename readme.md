@@ -1,11 +1,13 @@
 # 1001 ways to run Spark jobs
-So you have a fancy Spark job written in Scala and managed by `sbt`.
-Now you wonder how to actually run it.
+What are the possibilities to run your fancy Spark?
 Just get inspired by the list below (work-in-progress).
 
-Besides the readme this repository contains a Spark job.
-All instructions below are based on it.
-See the next section for more details about the code.  
+Atm only Spark jobs written in Scala and managed by `sbt` are covered.
+Python will be added in the future.
+
+This repository contains a Spark job which is used throughout all examples in this readme.
+Just use your `sbt` project or use the code here as template to get you started.
+See the next section for more details about the code and how to adapt it.
 
 ## About the Spark job
 The job reads publicly available trading data.
@@ -22,16 +24,7 @@ Many ways of running Spark have some steps in common like downloading Spark.
 Reoccurring steps are factored out and are listed here in order to reduce redundancy.
 You only need to execute them if they are mentioned in the actual list below.
 
-### Downloading Spark
-```shell script
-SPARK_VERSION="3.0.0-preview2"
-SPARK_FILE="spark-${SPARK_VERSION}-bin-hadoop3.2"
-wget https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/${SPARK_FILE}.tgz
-tar -xvzf ${SPARK_FILE}.tgz --one-top-level=spark --strip-components=1
-sparkReleasePath="$(pwd)/spark"
-```
-
-<a name="get-source-code"></a>
+<a name="get-sources"></a>
 ### Get the source code
 Download the content of this repo by:
 ```shell script
@@ -41,33 +34,31 @@ tar -xvzf master.tar.gz --one-top-level=ways-of-running-spark --strip-components
 sbtProject="$(pwd)/ways-of-running-spark"
 ```
 
+<a name="build-jar"></a>
 ### Build a fat jar
-1. Some environment variables:
+1. Define environment variable for later use:
    ```shell script
    targetSubPath="target/scala-2.12"
    ```
-   
-1. **Either** build the jar locally:
+
+2. **Either** build the jar locally:
    1. Install `sbt`
-   2. Download the source code: [#manual](#get-source-code)
+   2. Download the source code: [#manual](#get-sources)
    3. Execute:
       ```shell script
       cd "$sbtProject"
       sbt clean assembly
       ```  
-   **or** within a Docker image:
+   **or** build within a Docker image:
    ```shell script
-   docker build -t sbt:test -f Dockerfile2 . # TODO: download Dockerfile first
+   docker build -t sbt:test https://github.com/mrteutone/ways-of-running-spark.git
    containerId=$(docker create sbt:test)
    sbtProject="$HOME/ways-of-running-spark"  # $HOME is only a suggestion
-   
-   docker cp \
-     $containerId:/opt/workspace/ways-of-running-spark/$targetSubPath/ \
-     $sbtProject/
-    
+   docker cp $containerId:/opt/workspace/$targetSubPath/ $sbtProject/
    docker rm -v $containerId
    ```
-2. Define environment variables for later usage:
+
+3. Define environment variables for later usage:
    ```shell script
    sbtTargetDir="$sbtProject/$targetSubPath"
    jarName="ways-of-running-spark-assembly-0.1.jar"
@@ -76,8 +67,19 @@ sbtProject="$(pwd)/ways-of-running-spark"
    log4jConfFullPath="$sbtTargetDir/$log4jConfRelativePath"
    ```
 
+<a name="download-spark"></a>
+### Download Spark
+```shell script
+SPARK_VERSION="3.0.0-preview2"
+SPARK_FILE="spark-${SPARK_VERSION}-bin-hadoop3.2"
+wget https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/${SPARK_FILE}.tgz
+tar -xvzf ${SPARK_FILE}.tgz --one-top-level=spark --strip-components=1
+sparkReleasePath="$(pwd)/spark"
+```
+
+<a name="build-spark-image"></a>
 ### Build Spark Docker image
-1. Download Spark
+1. Download Spark [#manual](#download-spark)
 2. Build the docker image:
    ```shell script
    cd $sparkReleasePath
@@ -86,25 +88,27 @@ sbtProject="$(pwd)/ways-of-running-spark"
    ```
 
 ## 1. Develop locally, run locally as process within docker container
-```shell script
-dockerImage="eed3si9n/sbt:jdk11-alpine"
-docker pull $dockerImage
-
-docker run -it \
-  --mount src=$sbtProject,target=/opt/workspace,type=bind \
-  --entrypoint sbt \
-  $dockerImage "
-    run
-      --ISIN DE0005772206
-      --output deutsche-boerse-xetra-pds/processed/
-      --replace
-      --spark
-        spark.master=local[*]
-        spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
-        spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider
-        spark.ui.showConsoleProgress=true
-  "
-```
+1. Get the source code [#manual](#get-sources)
+2. Pull image and start container:
+    ```shell script
+    dockerImage="eed3si9n/sbt:jdk11-alpine"
+    docker pull $dockerImage
+    
+    docker run -it \
+      --mount src=$sbtProject,target=/opt/workspace,type=bind \
+      --entrypoint sbt \
+      $dockerImage "
+        run
+          --ISIN DE0005772206
+          --output deutsche-boerse-xetra-pds/processed/
+          --replace
+          --spark
+            spark.master=local[*]
+            spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+            spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider
+            spark.ui.showConsoleProgress=true
+      "
+    ```
 
 Besides unit tests this is the fastest way of developing and/or testing your Spark job.
 This way of running Spark is known as [self-contained application][2].
@@ -124,8 +128,8 @@ It is maintained by the former sbt lead Eugene Yokota so you don't even need you
 to do
 
 ## 3. Download Spark release, submit job locally
-1. Build a fat jar for your project: [fat-jar](#user-content-build-a-fat-jar)
-2. Download a Spark release [spark-download](#user-content-downloading-spark) and go into the installed path: `cd $sparkReleasePath`
+1. Build a fat jar for your project: [#manual](#build-jar)
+2. Download a Spark release [#manual](#download-spark)
 3. Execute:
     ```shell script
     $sparkReleasePath/bin/spark-submit \
@@ -144,16 +148,16 @@ to do
 ## 4. Submit job locally, official Spark Dockerfile
 You don't like downloading random things but decided to give it a try:
 
-1. Download Spark
-2. Build Spark docker image
-3. Build a fat jar
+1. Download Spark [#manual](#download-spark)
+2. Build Spark docker image [#manual](#build-spark-image)
+3. Build a fat jar [#manual](#build-jar)
 
 Congratulations, you now have your official Spark docker image ready to go.
 Now just submit your cool stuff to a docker container:
 
 ```shell script
 docker run -it --rm \
-  --mount src=$sbtProject/target/scala-2.12,target=/opt/workspace,type=bind \
+  --mount src=$sbtTargetDir,target=/opt/workspace,type=bind \
   spark:latest /opt/spark/bin/spark-submit \
     --verbose \
     --master local[*] \
@@ -224,45 +228,13 @@ Here you go:
       sudo chmod go+w /mnt/data
       ``` 
    
-   2. Create `pv-volume.yaml` with content:
-      ```yaml
-      apiVersion: v1
-      kind: PersistentVolume
-      metadata:
-        name: my-pv-volume
-        labels:
-          type: local
-      spec:
-        storageClassName: manual
-        capacity:
-          storage: 10Gi
-        accessModes:
-          - ReadWriteOnce
-        hostPath:
-          path: "/mnt/data"
+   2. Execute:
+      ```shell script
+      kubectl apply -f https://github.com/mrteutone/ways-of-running-spark/blob/master/pv-volume.yaml
+      kubectl apply -f https://raw.githubusercontent.com/mrteutone/ways-of-running-spark/master/pv-claim.yaml
+      kubectl get pv
+      kubectl get pvc
       ```
-
-   3. Create `pv-claim.yaml` with content:  
-      ```yaml
-      apiVersion: v1
-      kind: PersistentVolumeClaim
-      metadata:
-        name: my-pv-claim
-      spec:
-        storageClassName: manual
-        accessModes:
-          - ReadWriteOnce
-      resources:
-         requests:
-           storage: 3Gi
-      ```
-   
-   4. Execute:
-   
-          kubectl apply -f pv-volume.yaml
-          kubectl get pv
-          kubectl apply -f pv-claim.yaml
-          kubectl get pvc
 
 6. Download Spark
 
