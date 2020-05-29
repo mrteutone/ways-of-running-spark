@@ -1,12 +1,10 @@
 # 1001 ways to run Spark jobs
 What are the possibilities to run your fancy Spark?
 Just get inspired by the list below (work-in-progress).
-
-Atm only Spark jobs written in Scala and managed by `sbt` are covered.
+Atm only Spark jobs written in Scala and managed by `sbt` is covered.
 Python will be added in the future.
-
 This repository contains a Spark job which is used throughout all examples in this readme.
-Just use your `sbt` project or use the code here as template to get you started.
+Just use your own `sbt` project or use the code here as template to get started.
 See the next section for more details about the code and how to adapt it.
 
 ## About the Spark job
@@ -37,9 +35,8 @@ sbtProject="$(pwd)/ways-of-running-spark"
 <a name="build-jar"></a>
 ### Build a fat jar
 1. Define environment variable for later use:
-   ```shell script
-   targetSubPath="target/scala-2.12"
-   ```
+  
+       targetSubPath="target/scala-2.12"
 
 2. **Either** build the jar locally:
    1. Install `sbt`
@@ -69,6 +66,9 @@ sbtProject="$(pwd)/ways-of-running-spark"
 
 <a name="download-spark"></a>
 ### Download Spark
+Change to a directory where you want to download the files into.
+Then execute:
+
 ```shell script
 SPARK_VERSION="3.0.0-preview2"
 SPARK_FILE="spark-${SPARK_VERSION}-bin-hadoop3.2"
@@ -87,7 +87,7 @@ sparkReleasePath="$(pwd)/spark"
    ./bin/docker-image-tool.sh -f kubernetes/dockerfiles/spark/Dockerfile build
    ```
 
-## 1. Develop locally, run locally as process within docker container
+## 1. Develop locally, run as process in local docker container
 1. Get the source code [#manual](#get-sources)
 2. Pull image and start container:
     ```shell script
@@ -124,10 +124,7 @@ It is maintained by the former sbt lead Eugene Yokota so you don't even need you
 [3]: https://en.wikipedia.org/wiki/Alpine_Linux
 [1-github]: https://github.com/eed3si9n/docker-sbt
 
-## 2. Dockerfile already contains everything
-to do
-
-## 3. Download Spark release, submit job locally
+## 2. Download Spark release, submit job locally
 1. Build a fat jar for your project: [#manual](#build-jar)
 2. Download a Spark release [#manual](#download-spark)
 3. Execute:
@@ -145,15 +142,16 @@ to do
       $jarFullPath --ISIN DE0005772206 --replace
     ```
 
-## 4. Submit job locally, official Spark Dockerfile
+## 3. Submit job locally, official Spark Dockerfile
+### a. With Spark release download
 You don't like downloading random things but decided to give it a try:
 
 1. Download Spark [#manual](#download-spark)
 2. Build Spark docker image [#manual](#build-spark-image)
 3. Build a fat jar [#manual](#build-jar)
 
-Congratulations, you now have your official Spark docker image ready to go.
-Now just submit your cool stuff to a docker container:
+Congratulations, your official Spark Docker image is now ready to go.
+Now just create a Docker container and  submit your Spark job:
 
 ```shell script
 docker run -it --rm \
@@ -173,9 +171,42 @@ docker run -it --rm \
       --replace
 ```
 
-## 5. Locally in Kubernetes via Minikube
+### b. Without Spark release download
+1. Build a fat jar for your project: [#manual](#build-jar)
+2. Download Spark and build Spark Docker image with:
+   ```shell script
+   docker build -t spark:test2 - < Dockerfile2
+    
+   docker run --rm -it \
+     -v /var/run/docker.sock:/var/run/docker.sock \
+     -v /usr/bin/docker:/usr/bin/docker spark:test2 \
+     ./bin/docker-image-tool.sh -f kubernetes/dockerfiles/spark/Dockerfile build
+   ```
+3. Submit Spark job:
+    ```shell script
+    docker run --rm -it \
+      -v /var/run/docker.sock:/var/run/docker.sock \
+      -v /usr/bin/docker:/usr/bin/docker spark:test2 \
+      docker run -it --rm \
+        --mount src=$sbtTargetDir,target=/opt/workspace,type=bind \
+        spark:latest /opt/spark/bin/spark-submit \
+          --verbose \
+          --master local[*] \
+          --name spark-test \
+          --class StockAggregator \
+          --conf spark.driver.extraJavaOptions="-Dlog4j.configuration=file:///opt/workspace/$log4jConfRelativePath" \
+          --conf spark.executor.extraJavaOptions="-Dlog4j.configuration=file:///opt/workspace/$log4jConfRelativePath" \
+          --conf spark.hadoop.fs.s3a.impl="org.apache.hadoop.fs.s3a.S3AFileSystem" \
+          --conf spark.hadoop.fs.s3a.aws.credentials.provider="org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider" \
+          --conf spark.ui.showConsoleProgress=true \
+          /opt/workspace/$jarName \
+            --ISIN DE0005772206 \
+            --replace
+    ```
+
+## 5. Submit job to local Kubernetes cluster via Minikube
 Nowadays everybody wants to run everything in Kubernetes.
-Here you go:
+So do we:
 
 1. Install `kubectl` via https://kubernetes.io/docs/tasks/tools/install-kubectl
    Test successful install with `kubectl version --client`.
@@ -226,26 +257,26 @@ Here you go:
       minikube ssh
       sudo mkdir -p /mnt/data
       sudo chmod go+w /mnt/data
-      ``` 
+      ```
    
    2. Execute:
       ```shell script
-      kubectl apply -f https://github.com/mrteutone/ways-of-running-spark/blob/master/pv-volume.yaml
+      kubectl apply -f https://raw.githubusercontent.com/mrteutone/ways-of-running-spark/master/pv-volume.yaml
       kubectl apply -f https://raw.githubusercontent.com/mrteutone/ways-of-running-spark/master/pv-claim.yaml
       kubectl get pv
       kubectl get pvc
       ```
 
-6. Download Spark
+6. Download Spark: [#manual](#download-spark)
 
 7. Create a docker image accessible by Minikube:
    1. Follow the instructions printed by `minikube docker-env`
-   2. Build a fat jar
+   2. Build a fat jar: [#manual](#build-jar)
    3. Copy the fat jar and log4j conf so that it will be picked up when building the Spark docker image:
    
           cp "$log4jConfFullPath" "$jarFullPath" "$sparkReleasePath/examples/"
 
-   4. Build Spark docker image
+   4. Build Spark docker image: [#manual](#build-spark-image)
 
 8. Submit Spark job to Kubernetes:
      ```shell script
@@ -286,9 +317,7 @@ Here you go:
    * Check the context with `kubectl config current-context`
    * Get the cluster's ip address with `kubectl cluster-info`
 
-9. Check logs/result
-
-   Find out the Spark driver's pod name with
+9. To check logs and output find out the Spark driver's pod name with
    
        kubectl get pods
    
