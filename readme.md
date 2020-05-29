@@ -17,6 +17,9 @@ Within the standard sbt project structure you will find:
 * Actual Spark job: `src/main/scala/StockAggregator.scala`.
 * Unit tests: `src/test/scala/StockAggregatorTest.scala`.
 
+### Use as template
+to do
+
 ## Reoccurring instructions
 Many ways of running Spark have some steps in common like downloading Spark.
 Reoccurring steps are factored out and are listed here in order to reduce redundancy.
@@ -143,7 +146,7 @@ It is maintained by the former sbt lead Eugene Yokota so you don't even need you
     ```
 
 ## 3. Submit job locally, official Spark Dockerfile
-### a. With Spark release download
+### a. With Spark download
 You don't like downloading random things but decided to give it a try:
 
 1. Download Spark [#manual](#download-spark)
@@ -156,7 +159,8 @@ Now just create a Docker container and  submit your Spark job:
 ```shell script
 docker run -it --rm \
   --mount src=$sbtTargetDir,target=/opt/workspace,type=bind \
-  spark:latest /opt/spark/bin/spark-submit \
+  spark:latest \
+  /opt/spark/bin/spark-submit \
     --verbose \
     --master local[*] \
     --name spark-test \
@@ -171,25 +175,29 @@ docker run -it --rm \
       --replace
 ```
 
-### b. Without Spark release download
+### b. Without Spark download
 1. Build a fat jar for your project: [#manual](#build-jar)
 2. Download Spark and build Spark Docker image with:
    ```shell script
-   docker build -t spark:test2 - < Dockerfile2
+   dockerfileURL="https://raw.githubusercontent.com/mrteutone/ways-of-running-spark/master/Dockerfile2"
+   curl $dockerfileURL | docker build -t spark:test2 -
     
    docker run --rm -it \
      -v /var/run/docker.sock:/var/run/docker.sock \
-     -v /usr/bin/docker:/usr/bin/docker spark:test2 \
+     -v /usr/bin/docker:/usr/bin/docker \
+     spark:test2 \
      ./bin/docker-image-tool.sh -f kubernetes/dockerfiles/spark/Dockerfile build
    ```
 3. Submit Spark job:
     ```shell script
     docker run --rm -it \
       -v /var/run/docker.sock:/var/run/docker.sock \
-      -v /usr/bin/docker:/usr/bin/docker spark:test2 \
+      -v /usr/bin/docker:/usr/bin/docker \
+      spark:test2 \
       docker run -it --rm \
         --mount src=$sbtTargetDir,target=/opt/workspace,type=bind \
-        spark:latest /opt/spark/bin/spark-submit \
+        spark:latest \
+        /opt/spark/bin/spark-submit \
           --verbose \
           --master local[*] \
           --name spark-test \
@@ -202,9 +210,10 @@ docker run -it --rm \
           /opt/workspace/$jarName \
             --ISIN DE0005772206 \
             --replace
-    ```
+    ```  
+(Idea taken from [forums.docker.com](https://forums.docker.com/t/how-can-i-run-docker-command-inside-a-docker-container/337/7))
 
-## 5. Submit job to local Kubernetes cluster via Minikube
+## 4. Submit job to local Kubernetes cluster via Minikube
 Nowadays everybody wants to run everything in Kubernetes.
 So do we:
 
@@ -338,17 +347,22 @@ So do we:
 
         kubectl delete pod spark-test-...-driver
 
-## 6. EC2 with CloudFormation
+## 5. EC2 with CloudFormation
+to do, start EC2 instance with Docker installed via custom
+[CloudFormation template](https://github.com/mrteutone/ways-of-running-spark/blob/master/cloudFormation-ec2.json)
+or use [official template](https://hub.docker.com/editions/community/docker-ce-aws)
+
+## 6. ECS
 to do
 
-## 7. ECS
+## 7. EKS
 to do
 
-## 8. EKS
+## 8. EMR
 to do
 
-## 9. EMR
-to do
-
-## 10. spark-on-k8s-operator
+## 9. spark-on-k8s-operator
 [to do](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator)
+
+## 10. airflow-spark-operator
+[to do](https://github.com/rssanders3/airflow-spark-operator-plugin)
